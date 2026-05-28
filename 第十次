@@ -1,0 +1,58 @@
+# ========== 任务1：环境准备 ==========
+import torch
+import torchvision
+import numpy
+import matplotlib.pyplot as plt
+import torch.nn as nn
+import torch.optim as optim
+
+print("torch版本:", torch.__version__)
+print("GPU是否可用:", torch.cuda.is_available())
+a = torch.tensor([1,2,3])
+print("张量测试正常:", a)
+
+# ========== 任务2：数据集加载 ==========
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, random_split
+
+transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.1307,), (0.3081,))
+])
+
+train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+
+train_size = int(0.8 * len(train_dataset))
+val_size = len(train_dataset) - train_size
+train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
+
+batch_size = 64
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+# ========== 任务3：搭建CNN模型 ==========
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+class CNN(nn.Module):
+    def __init__(self):
+        super(CNN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, padding=1)
+        self.relu = nn.ReLU()
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
+        # 1. 修改全连接层神经元：128 → 256
+        self.fc1 = nn.Linear(32 * 7 * 7, 256)
+        self.fc2 = nn.Linear(256, 10)
+        # 2. 新增Dropout层，抑制过拟合
+        self.dropout = nn.Dropout(0.25)
+
+    def forward(self, x):
+        x = self.pool(self.relu(self.conv1(x)))
+        x = self.pool(self.relu(self.conv2(x)))
+        x = x.view(-1, 32 * 7 * 7)
+        x = self.dropout(x)  # 加入dropout
+        x = self.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
